@@ -1,6 +1,7 @@
 package unsorted;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Random;
 
 public class Board {
 	
@@ -8,11 +9,13 @@ public class Board {
 	private static Piece wallPiece = new Piece(PieceType.WALL);
 	private final int xDimension, yDimension;
 	private HashMap<Piece, int[]> placedPieces;		// Maps pieces to a coordinate pair of (xCoordinate, yCoordinate)
+	private boolean easyMode;
 	
 	/* Constructors */
 	public Board(int xDimension, int yDimension) {
 		this.xDimension = xDimension;
 		this.yDimension = yDimension;
+		easyMode = true;
 		board = new ArrayList<ArrayList<Space>>();
 		placedPieces = new HashMap<Piece, int[]>();
 		
@@ -20,12 +23,65 @@ public class Board {
 			board.add(new ArrayList<Space>());
 			ArrayList<Space> currentRow = board.get(y);
 			for (int x = 0; x < xDimension; x++) {
-				if (y == 0 || y == yDimension - 1 || x == 0 || x == yDimension - 1)
+				currentRow.add(new Space());
+				/*
+				if (y == 0 || y == yDimension - 1 || x == 0 || x == xDimension - 1)
 					currentRow.add(new Space(wallPiece));
 				else
 					currentRow.add(new Space());
+					*/
 			}
 		}
+	}
+	
+	
+	public static Board generateRandomLevel(int xDimension, int yDimension) {		// Generates a fully randomized level, both walls and pieces are randomly placed
+		Board level = new Board(xDimension, yDimension);
+		Random r = new Random();
+		while(r.nextInt(10) != 0) {
+			level.placeWall(r.nextInt(xDimension - 1), r.nextInt(yDimension - 1));
+		}
+		
+		randomizeLevel(level);
+		
+		return level;
+	}
+	
+	public static void randomizeLevel(Board level) {		// Generates a randomized set of pieces on the given board.
+		int xDim = level.xDimension;
+		int yDim = level.yDimension;
+
+		Random r = new Random();
+		
+		//ArrayList<ArrayList<Space>> levelBoard = level.board;
+		
+		for (int y = 0; y < yDim; y++) {
+			//ArrayList<Space> row = levelBoard.get(y);
+			for (int x = 0; x < xDim; x++) {
+				if (!level.spaceIsEmpty(x, y) || level.spaceIsGuarded(x, y))
+					continue;
+				
+				int num = r.nextInt(6);		// Generate a random piece and try to place it, cycle through all possible pieces and see if they can be placed here
+				for (int offset = 0; offset <= 5; offset++) {
+					Piece nextPiece = new Piece(num + offset);
+					level.placePiece(nextPiece, x, y);
+					if (level.isValidSolution())
+						break;
+					else
+						level.removePiece(x, y);
+				}
+			}
+		}
+	}
+	
+	
+	/* Other manipulation */
+	public void setEasy() {
+		easyMode = true;
+	}
+	
+	public void setHard() {
+		easyMode = false;
 	}
 	
 	
@@ -34,10 +90,17 @@ public class Board {
 		board.get(yCoordinate).get(xCoordinate).placePiece(wallPiece);
 	}
 	
+	public void placeBoxWalls(int xCoordinate1, int yCoordinate1, int xCoordinate2, int yCoordinate2) {
+		for (int x = xCoordinate1; x <= xCoordinate2; x++) {
+			for (int y = yCoordinate1; y <= yCoordinate2; y++)
+				this.placeWall(x, y);
+		}
+	}
+	
 	public void placePiece(Piece piece, int xCoordinate, int yCoordinate) {
 		
-		if (yCoordinate <= 0 || yCoordinate >= yDimension || xCoordinate <= 0 || xCoordinate >= xDimension) {
-			System.out.println("Coordinate provided to placePiece is out of bounds");
+		if (yCoordinate < 0 || yCoordinate >= yDimension || xCoordinate < 0 || xCoordinate >= xDimension) {
+			System.out.println("Coordinate provided to placePiece is out of bounds. Coordinates provided: " + xCoordinate + ", " + yCoordinate);
 			return;
 		}
 		else if (board.get(yCoordinate).get(xCoordinate).hasPiece()) {
@@ -84,137 +147,9 @@ public class Board {
 		placedPieces.put(piece, coordinates);
 	}
 	
-	
-	private void guardCardinal(Piece piece, int xCoordinate, int yCoordinate) {
-		ArrayList<Space> row = board.get(yCoordinate);
-		for (int x = xCoordinate + 1; x < xDimension; x++) {		// Guard across in the +x direction
-			if (row.get(x).hasPiece() && row.get(x).getPiece().getType() == PieceType.WALL)		// Stop upon encountering a wall
-				break;
-			row.get(x).addGuardingPiece(piece);
-		}
-		
-		for (int x = xCoordinate - 1; x > 0; x--) {					// Guard across in the -x direction
-			if (row.get(x).hasPiece() && row.get(x).getPiece().getType() == PieceType.WALL)
-				break;
-			row.get(x).addGuardingPiece(piece);
-		}
-		
-		for (int y = yCoordinate + 1; y < yDimension; y++) {		// Guard across in the +y direction
-			if (board.get(y).get(xCoordinate).hasPiece() && board.get(y).get(xCoordinate).getPiece().getType() == PieceType.WALL)
-				break;
-			board.get(y).get(xCoordinate).addGuardingPiece(piece);
-		}
-		
-		for (int y = yCoordinate - 1; y > 0; y--) {					// Guard across in the -y direction
-			if (board.get(y).get(xCoordinate).hasPiece() && board.get(y).get(xCoordinate).getPiece().getType() == PieceType.WALL)
-				break;
-			board.get(y).get(xCoordinate).addGuardingPiece(piece);
-		}
-	}
-	
-	private void guardIntercardinal(Piece piece, int xCoordinate, int yCoordinate) {
-		int offset = 1;
-		while(true) {
-			int nextX = xCoordinate + offset;
-			int nextY = yCoordinate + offset;
-			if (board.get(nextY).get(nextX).hasPiece() && board.get(nextY).get(nextX).getPiece().getType() == PieceType.WALL)
-				break;
-			board.get(nextY).get(nextX).addGuardingPiece(piece);
-			offset++;
-		}
-		
-		offset = 1;
-		while(true) {
-			int nextX = xCoordinate + offset;
-			int nextY = yCoordinate - offset;
-			if (board.get(nextY).get(nextX).hasPiece() && board.get(nextY).get(nextX).getPiece().getType() == PieceType.WALL)
-				break;
-			board.get(nextY).get(nextX).addGuardingPiece(piece);
-			offset++;
-		}
-
-		offset = 1;
-		while(true) {
-			int nextX = xCoordinate - offset;
-			int nextY = yCoordinate + offset;
-			if (board.get(nextY).get(nextX).hasPiece() && board.get(nextY).get(nextX).getPiece().getType() == PieceType.WALL)
-				break;
-			board.get(nextY).get(nextX).addGuardingPiece(piece);
-			offset++;
-		}
-
-		offset = 1;
-		while(true) {
-			int nextX = xCoordinate - offset;
-			int nextY = yCoordinate - offset;
-			if (board.get(nextY).get(nextX).hasPiece() && board.get(nextY).get(nextX).getPiece().getType() == PieceType.WALL)
-				break;
-			board.get(nextY).get(nextX).addGuardingPiece(piece);
-			offset++;
-		}
-	}
-	
-	
-	private void guardKnight(Piece piece, int xCoordinate, int yCoordinate) {
-		int[][] possibleKnightMoves = {
-				{xCoordinate + 2, yCoordinate + 1},
-				{xCoordinate + 2, yCoordinate - 1},
-				{xCoordinate + 1, yCoordinate + 2},
-				{xCoordinate + 1, yCoordinate - 2},
-				{xCoordinate - 1, yCoordinate + 2},
-				{xCoordinate - 1, yCoordinate - 2},
-				{xCoordinate - 2, yCoordinate + 1},
-				{xCoordinate - 2, yCoordinate - 1}
-				};
-		
-		setPossibleGuards(piece, possibleKnightMoves);
-	}
-	
-	private void guardAdjacent(Piece piece, int xCoordinate, int yCoordinate) {
-		int [][] possibleAdjacentMoves = {
-				{xCoordinate + 1, yCoordinate + 1},
-				{xCoordinate + 1, yCoordinate},
-				{xCoordinate + 1, yCoordinate - 1},
-				{xCoordinate, yCoordinate + 1},
-				{xCoordinate, yCoordinate - 1},
-				{xCoordinate - 1, yCoordinate + 1},
-				{xCoordinate - 1, yCoordinate},
-				{xCoordinate - 1, yCoordinate - 1}
-				};
-		
-		setPossibleGuards(piece, possibleAdjacentMoves);
-	}
-	
-	private void guardAdjacentDiagonal(Piece piece, int xCoordinate, int yCoordinate) {
-		int [][] possibleAdjacentDiagonalMoves = {
-				{xCoordinate + 1, yCoordinate + 1},
-				{xCoordinate + 1, yCoordinate - 1},
-				{xCoordinate - 1, yCoordinate + 1},
-				{xCoordinate - 1, yCoordinate - 1},
-		};
-		
-		setPossibleGuards(piece, possibleAdjacentDiagonalMoves);
-	}
-	
-	private void setPossibleGuards(Piece piece, int[][] possibleMoves) {		// Filters through possibleMoves and sets them as guard if they are a valid coordinate
-		for (int i = 0; i < possibleMoves.length; i++) {
-			int[] nextCoordinate = possibleMoves[i];
-			if (nextCoordinate[0] > 0 && nextCoordinate[0] < xDimension && nextCoordinate[1] > 0 && nextCoordinate[1] < yDimension) {
-				board.get(nextCoordinate[1]).get(nextCoordinate[0]).addGuardingPiece(piece);
-			}
-		}
-	}
-	
-	
-	/*
-	public void removeWall(int xCoordinate, int yCoordinate) {
-		board.get(yCoordinate).get(xCoordinate).placePiece(wallPiece);
-	}
-	*/
-	
 	public void removePiece(int xCoordinate, int yCoordinate) {
 		
-		if (yCoordinate <= 0 || yCoordinate >= yDimension || xCoordinate <= 0 || xCoordinate >= xDimension) {
+		if (yCoordinate < 0 || yCoordinate >= yDimension || xCoordinate < 0 || xCoordinate >= xDimension) {
 			System.out.println("Coordinate provided to removePiece is out of bounds");
 			return;
 		}
@@ -257,80 +192,240 @@ public class Board {
 		}
 		
 		board.get(yCoordinate).get(xCoordinate).removePiece();
-		int[] coordinates = {xCoordinate, yCoordinate};
-		placedPieces.remove(piece, coordinates);
+		//int[] coordinates = {xCoordinate, yCoordinate};
+		//placedPieces.remove(piece, coordinates);
+		placedPieces.remove(piece);
 	}
+
+	/*
+	public void removeWall(int xCoordinate, int yCoordinate) {
+		board.get(yCoordinate).get(xCoordinate).placePiece(wallPiece);
+	}
+	*/
 	
 	
-	private void removeGuardCardinal(Piece piece, int xCoordinate, int yCoordinate) {
+	/* Guard setting */
+	private void guardCardinal(Piece piece, int xCoordinate, int yCoordinate) {
 		ArrayList<Space> row = board.get(yCoordinate);
 		for (int x = xCoordinate + 1; x < xDimension; x++) {		// Guard across in the +x direction
-			if (row.get(x).hasPiece() && row.get(x).getPiece().getType() == PieceType.WALL)		// Stop upon encountering a wall
+			if (spaceIsGuardable(x, yCoordinate)) {
+				row.get(x).addGuardingPiece(piece);
+			} else {
 				break;
-			row.get(x).removeGuardingPiece(piece);
+			}
 		}
 		
-		for (int x = xCoordinate - 1; x > 0; x--) {					// Guard across in the -x direction
-			if (row.get(x).hasPiece() && row.get(x).getPiece().getType() == PieceType.WALL)
+		for (int x = xCoordinate - 1; x >= 0; x--) {					// Guard across in the -x direction
+			if (spaceIsGuardable(x, yCoordinate)) {
+				row.get(x).addGuardingPiece(piece);
+			} else {
 				break;
-			row.get(x).removeGuardingPiece(piece);
+			}
 		}
 		
 		for (int y = yCoordinate + 1; y < yDimension; y++) {		// Guard across in the +y direction
-			if (board.get(y).get(xCoordinate).hasPiece() && board.get(y).get(xCoordinate).getPiece().getType() == PieceType.WALL)
+			if (spaceIsGuardable(xCoordinate, y)) {
+				board.get(y).get(xCoordinate).addGuardingPiece(piece);
+			} else {
 				break;
-			board.get(y).get(xCoordinate).removeGuardingPiece(piece);
+			}
 		}
 		
-		for (int y = yCoordinate - 1; y > 0; y--) {					// Guard across in the -y direction
-			if (board.get(y).get(xCoordinate).hasPiece() && board.get(y).get(xCoordinate).getPiece().getType() == PieceType.WALL)
+		for (int y = yCoordinate - 1; y >= 0; y--) {					// Guard across in the -y direction
+			if (spaceIsGuardable(xCoordinate, y)) {
+				board.get(y).get(xCoordinate).addGuardingPiece(piece);
+			} else {
 				break;
-			board.get(y).get(xCoordinate).removeGuardingPiece(piece);
+			}
+		}
+	}
+	
+	private void guardIntercardinal(Piece piece, int xCoordinate, int yCoordinate) {
+		int offset = 1;
+		while(true) {		// Guard across in the +x +y diagonal
+			int nextX = xCoordinate + offset;
+			int nextY = yCoordinate + offset;
+			if (spaceIsGuardable(nextX, nextY)) {
+				board.get(nextY).get(nextX).addGuardingPiece(piece);
+			} else {
+				break;
+			}
+			offset++;
+		}
+		
+		offset = 1;
+		while(true) {		// Guard across in the +x -y diagonal
+			int nextX = xCoordinate + offset;
+			int nextY = yCoordinate - offset;
+			if (spaceIsGuardable(nextX, nextY)) {
+				board.get(nextY).get(nextX).addGuardingPiece(piece);
+			} else {
+				break;
+			}
+			offset++;
+		}
+
+		offset = 1;
+		while(true) {		// Guard across in the -x +y diagonal
+			int nextX = xCoordinate - offset;
+			int nextY = yCoordinate + offset;
+			if (spaceIsGuardable(nextX, nextY)) {
+				board.get(nextY).get(nextX).addGuardingPiece(piece);
+			} else {
+				break;
+			}
+			offset++;
+		}
+
+		offset = 1;
+		while(true) {		// Guard across in the -x -y diagonal
+			int nextX = xCoordinate - offset;
+			int nextY = yCoordinate - offset;
+			if (spaceIsGuardable(nextX, nextY)) {
+				board.get(nextY).get(nextX).addGuardingPiece(piece);
+			} else {
+				break;
+			}
+			offset++;
+		}
+	}
+	
+	private void guardKnight(Piece piece, int xCoordinate, int yCoordinate) {
+		int[][] possibleKnightMoves = {
+				{xCoordinate + 2, yCoordinate + 1},
+				{xCoordinate + 2, yCoordinate - 1},
+				{xCoordinate + 1, yCoordinate + 2},
+				{xCoordinate + 1, yCoordinate - 2},
+				{xCoordinate - 1, yCoordinate + 2},
+				{xCoordinate - 1, yCoordinate - 2},
+				{xCoordinate - 2, yCoordinate + 1},
+				{xCoordinate - 2, yCoordinate - 1}
+				};
+		
+		setPossibleGuards(piece, possibleKnightMoves);
+	}
+	
+	private void guardAdjacent(Piece piece, int xCoordinate, int yCoordinate) {		// Guards ALL adjacent spaces
+		int [][] possibleAdjacentMoves = {
+				{xCoordinate + 1, yCoordinate + 1},
+				{xCoordinate + 1, yCoordinate},
+				{xCoordinate + 1, yCoordinate - 1},
+				{xCoordinate, yCoordinate + 1},
+				{xCoordinate, yCoordinate - 1},
+				{xCoordinate - 1, yCoordinate + 1},
+				{xCoordinate - 1, yCoordinate},
+				{xCoordinate - 1, yCoordinate - 1}
+				};
+		
+		setPossibleGuards(piece, possibleAdjacentMoves);
+	}
+	
+	private void guardAdjacentDiagonal(Piece piece, int xCoordinate, int yCoordinate) {		// Guards only the diagonal adjacent spaces
+		int [][] possibleAdjacentDiagonalMoves = {
+				{xCoordinate + 1, yCoordinate + 1},
+				{xCoordinate + 1, yCoordinate - 1},
+				{xCoordinate - 1, yCoordinate + 1},
+				{xCoordinate - 1, yCoordinate - 1},
+		};
+		
+		setPossibleGuards(piece, possibleAdjacentDiagonalMoves);
+	}
+	
+	private void setPossibleGuards(Piece piece, int[][] possibleMoves) {		// Filters through possibleMoves and sets them as guarded if they are a valid coordinate
+		for (int i = 0; i < possibleMoves.length; i++) {
+			int[] nextCoordinate = possibleMoves[i];
+			if (nextCoordinate[0] >= 0 && nextCoordinate[0] < xDimension && nextCoordinate[1] >= 0 && nextCoordinate[1] < yDimension) {
+				board.get(nextCoordinate[1]).get(nextCoordinate[0]).addGuardingPiece(piece);
+			}
+		}
+	}
+	
+	
+	/* Remove guard setting */
+	private void removeGuardCardinal(Piece piece, int xCoordinate, int yCoordinate) {
+		ArrayList<Space> row = board.get(yCoordinate);
+		for (int x = xCoordinate + 1; x < xDimension; x++) {		// Remove guard across in the +x direction
+			if (spaceIsGuardable(x, yCoordinate)) {
+				row.get(x).removeGuardingPiece(piece);
+			} else {
+				break;
+			}
+		}
+		
+		for (int x = xCoordinate - 1; x >= 0; x--) {					// Remove guard across in the -x direction
+			if (spaceIsGuardable(x, yCoordinate)) {
+				row.get(x).removeGuardingPiece(piece);
+			} else {
+				break;
+			}
+		}
+		
+		for (int y = yCoordinate + 1; y < yDimension; y++) {		// Remove guard across in the +y direction
+			if (spaceIsGuardable(xCoordinate, y)) {
+				board.get(y).get(xCoordinate).removeGuardingPiece(piece);
+			} else {
+				break;
+			}
+		}
+		
+		for (int y = yCoordinate - 1; y >= 0; y--) {					// Remove guard across in the -y direction
+			if (spaceIsGuardable(xCoordinate, y)) {
+				board.get(y).get(xCoordinate).removeGuardingPiece(piece);
+			} else {
+				break;
+			}
 		}
 	}
 	
 	private void removeGuardIntercardinal(Piece piece, int xCoordinate, int yCoordinate) {
 		int offset = 1;
-		while(true) {
+		while(true) {		// Remove guard across in the +x +y diagonal
 			int nextX = xCoordinate + offset;
 			int nextY = yCoordinate + offset;
-			if (board.get(nextY).get(nextX).hasPiece() && board.get(nextY).get(nextX).getPiece().getType() == PieceType.WALL)
+			if (spaceIsGuardable(nextX, nextY)) {
+				board.get(nextY).get(nextX).removeGuardingPiece(piece);
+			} else {
 				break;
-			board.get(nextY).get(nextX).removeGuardingPiece(piece);
+			}
 			offset++;
 		}
 
 		offset = 1;
-		while(true) {
+		while(true) {		// Remove guard across in the +x -y diagonal
 			int nextX = xCoordinate + offset;
 			int nextY = yCoordinate - offset;
-			if (board.get(nextY).get(nextX).hasPiece() && board.get(nextY).get(nextX).getPiece().getType() == PieceType.WALL)
+			if (spaceIsGuardable(nextX, nextY)) {
+				board.get(nextY).get(nextX).removeGuardingPiece(piece);
+			} else {
 				break;
-			board.get(nextY).get(nextX).removeGuardingPiece(piece);
+			}
 			offset++;
 		}
 
 		offset = 1;
-		while(true) {
+		while(true) {		// Remove guard across in the -x +y diagonal
 			int nextX = xCoordinate - offset;
 			int nextY = yCoordinate + offset;
-			if (board.get(nextY).get(nextX).hasPiece() && board.get(nextY).get(nextX).getPiece().getType() == PieceType.WALL)
+			if (spaceIsGuardable(nextX, nextY)) {
+				board.get(nextY).get(nextX).removeGuardingPiece(piece);
+			} else {
 				break;
-			board.get(nextY).get(nextX).removeGuardingPiece(piece);
+			}
 			offset++;
 		}
 
 		offset = 1;
-		while(true) {
+		while(true) {		// Remove guard across in the -x -y diagonal
 			int nextX = xCoordinate - offset;
 			int nextY = yCoordinate - offset;
-			if (board.get(nextY).get(nextX).hasPiece() && board.get(nextY).get(nextX).getPiece().getType() == PieceType.WALL)
+			if (spaceIsGuardable(nextX, nextY)) {
+				board.get(nextY).get(nextX).removeGuardingPiece(piece);
+			} else {
 				break;
-			board.get(nextY).get(nextX).removeGuardingPiece(piece);
+			}
 			offset++;
 		}
 	}
-	
 	
 	private void removeGuardKnight(Piece piece, int xCoordinate, int yCoordinate) {
 		int[][] possibleKnightMoves = {
@@ -376,7 +471,7 @@ public class Board {
 	private void removePossibleGuards(Piece piece, int[][] possibleMoves) {		// Filters through possibleMoves and sets them as guard if they are a valid coordinate
 		for (int i = 0; i < possibleMoves.length; i++) {
 			int[] nextCoordinate = possibleMoves[i];
-			if (nextCoordinate[0] > 0 && nextCoordinate[0] < xDimension && nextCoordinate[1] > 0 && nextCoordinate[1] < yDimension) {
+			if (nextCoordinate[0] >= 0 && nextCoordinate[0] < xDimension && nextCoordinate[1] >= 0 && nextCoordinate[1] < yDimension) {
 				board.get(nextCoordinate[1]).get(nextCoordinate[0]).removeGuardingPiece(piece);
 			}
 		}
@@ -392,6 +487,15 @@ public class Board {
 		return !board.get(yCoordinate).get(xCoordinate).hasPiece();
 	}
 	
+	public boolean spaceIsGuardable(int xCoordinate, int yCoordinate) {
+		if (xCoordinate < 0 || xCoordinate >= xDimension || yCoordinate < 0 || yCoordinate >= yDimension)
+			return false;
+		else {
+			Space position = board.get(yCoordinate).get(xCoordinate);
+			return !(position.hasPiece() && position.getPiece().getType() == PieceType.WALL);
+		}
+	}
+	
 	public boolean isValidSolution() {
 		for (Piece piece: placedPieces.keySet()) {
 			
@@ -402,6 +506,20 @@ public class Board {
 		return true;
 	}
 	
+	
+	/* Get Methods */
+	public HashMap<Piece, int[]> getPieces() {
+		return placedPieces;
+	}
+	
+	public int getWidth() {
+		return xDimension;
+	}
+	
+	public int getLength() {
+		return yDimension;
+	}
+	
 	@Override
 	public String toString() {
 		String retString = "";
@@ -409,9 +527,21 @@ public class Board {
 		for (int y = board.size() - 1; y >= 0 ; y--) {
 			ArrayList<Space> currentRow = board.get(y);
 			
-			retString += currentRow.get(0).toString();
-			for (int x = 1; x < currentRow.size(); x++) {
-				retString += "|" + currentRow.get(x);
+			//retString += currentRow.get(0).toString();
+			
+			
+			
+			for (int x = 0; x < currentRow.size(); x++) {
+				String nextSpace = currentRow.get(x).toString();
+				
+				if (!easyMode && nextSpace.equals("x")) {
+					nextSpace = "o";
+				}
+				
+				if (x == 0)
+					retString += nextSpace;
+				else
+					retString += "|" + nextSpace;
 			}
 			
 			if (y != 0)
