@@ -8,27 +8,44 @@ import org.junit.Test;
 
 import unsorted.Piece;
 import unsorted.PieceType;
+import unsorted.Space;
 
 public class PieceTest {
 
+	Piece kingPiece, queenPiece, rookPiece, bishopPiece, knightPiece, pawnPiece, wallPiece;
+
 	@Before
 	public void setUp() throws Exception {
+		kingPiece = new Piece(PieceType.KING);
+		queenPiece = new Piece(PieceType.QUEEN);
+		rookPiece = new Piece(PieceType.ROOK);
+		bishopPiece = new Piece(PieceType.BISHOP);
+		knightPiece = new Piece(PieceType.KNIGHT);
+		pawnPiece = new Piece(PieceType.PAWN);
+		wallPiece = new Piece(PieceType.WALL);
 	}
 
 	@After
 	public void tearDown() throws Exception {
+		kingPiece = null;
+		queenPiece = null;
+		rookPiece = null;
+		bishopPiece = null;
+		knightPiece = null;
+		pawnPiece = null;
+		wallPiece = null;
+		
+		assertNull(kingPiece);
+		assertNull(queenPiece);
+		assertNull(rookPiece);
+		assertNull(bishopPiece);
+		assertNull(knightPiece);
+		assertNull(pawnPiece);
+		assertNull(wallPiece);
 	}
 
 	@Test
 	public void toStringTest() {
-		Piece kingPiece = new Piece(PieceType.KING);
-		Piece queenPiece = new Piece(PieceType.QUEEN);
-		Piece rookPiece = new Piece(PieceType.ROOK);
-		Piece bishopPiece = new Piece(PieceType.BISHOP);
-		Piece knightPiece = new Piece(PieceType.KNIGHT);
-		Piece pawnPiece = new Piece(PieceType.PAWN);
-		Piece wallPiece = new Piece(PieceType.WALL);
-		
 		assertEquals("K", kingPiece.toString());
 		assertEquals("Q", queenPiece.toString());
 		assertEquals("R", rookPiece.toString());
@@ -40,14 +57,6 @@ public class PieceTest {
 	
 	@Test
 	public void getTypeTest() {
-		Piece kingPiece = new Piece(PieceType.KING);
-		Piece queenPiece = new Piece(PieceType.QUEEN);
-		Piece rookPiece = new Piece(PieceType.ROOK);
-		Piece bishopPiece = new Piece(PieceType.BISHOP);
-		Piece knightPiece = new Piece(PieceType.KNIGHT);
-		Piece pawnPiece = new Piece(PieceType.PAWN);
-		Piece wallPiece = new Piece(PieceType.WALL);
-		
 		assertEquals(PieceType.KING, kingPiece.getType());
 		assertEquals(PieceType.QUEEN, queenPiece.getType());
 		assertEquals(PieceType.ROOK, rookPiece.getType());
