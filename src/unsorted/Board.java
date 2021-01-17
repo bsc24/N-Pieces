@@ -1,14 +1,18 @@
 package unsorted;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Random;
+import java.util.Set;
 
 public class Board {
 	
 	private ArrayList<ArrayList<Space>> board;		// The "outer layer" of ArrayList is the y coordinate (the rows of the board) while the "inner layer" is for the actual pieces on that piece of the board 
 	private static Piece wallPiece = new Piece(PieceType.WALL);
 	private final int xDimension, yDimension;
-	private HashMap<Piece, int[]> placedPieces;		// Maps pieces to a coordinate pair of (xCoordinate, yCoordinate)
+	private HashMap<Piece, int[]> placedPieces;			// Maps currently placed pieces to a coordinate pair of (xCoordinate, yCoordinate)
+	private HashMap<Piece, int[]> solutionPlacement;	// Maps where all pieces are meant to go for solution of this puzzle
+	private HashSet<Piece> solutionPieces;			// List of all pieces part of the solution 
 	private boolean easyMode;
 	
 	/* Constructors */
@@ -18,6 +22,8 @@ public class Board {
 		easyMode = true;
 		board = new ArrayList<ArrayList<Space>>();
 		placedPieces = new HashMap<Piece, int[]>();
+		solutionPlacement = new HashMap<Piece, int[]>();
+		solutionPieces = new HashSet<Piece>();
 		
 		for (int y = 0; y < yDimension; y++) {
 			board.add(new ArrayList<Space>());
@@ -35,19 +41,24 @@ public class Board {
 	}
 	
 	
-	public static Board generateRandomLevel(int xDimension, int yDimension) {		// Generates a fully randomized level, both walls and pieces are randomly placed
+	public static Board generateRandomLevel(int xDimension, int yDimension, double wallPercent) {		// Generates a fully randomized level, both walls and pieces are randomly placed
 		Board level = new Board(xDimension, yDimension);
 		Random r = new Random();
-		while(r.nextInt(10) != 0) {
-			level.placeWall(r.nextInt(xDimension - 1), r.nextInt(yDimension - 1));
+		int wallChance = (int) Math.round(wallPercent * 100);
+		for (int y = 0; y < yDimension; y++) {
+			for (int x = 0; x < xDimension; x++) {
+				if (r.nextInt(100) < wallChance) {
+					level.placeWall(x, y);
+				}
+			}
 		}
 		
-		randomizeLevel(level);
+		randomizePieces(level);
 		
 		return level;
 	}
 	
-	public static void randomizeLevel(Board level) {		// Generates a randomized set of pieces on the given board.
+	public static void randomizePieces(Board level) {		// Generates a randomized set of pieces on the given board.
 		int xDim = level.xDimension;
 		int yDim = level.yDimension;
 
@@ -70,6 +81,29 @@ public class Board {
 					else
 						level.removePiece(x, y);
 				}
+			}
+		}
+		
+		level.setSolution(level.placedPieces);
+		level.resetBoard();
+	}
+	
+	
+	public void setSolution(HashMap<Piece, int[]> possibleSolution) {
+		//TODO: Check that the solution works, for now it will just take it as the true solution
+		for (Piece piece: possibleSolution.keySet()) {
+			int[] coords = placedPieces.get(piece);
+			solutionPlacement.put(piece, coords);
+			solutionPieces.add(piece);
+		}
+	}
+	
+	
+	public void resetBoard() {
+		for (Piece piece: solutionPlacement.keySet()) {
+			int[] coords = placedPieces.get(piece);
+			if (coords != null) {
+				removePiece(coords[0], coords[1]);
 			}
 		}
 	}
@@ -97,15 +131,21 @@ public class Board {
 		}
 	}
 	
-	public void placePiece(Piece piece, int xCoordinate, int yCoordinate) {
+	public boolean placePiece(Piece piece, int xCoordinate, int yCoordinate) {
+		/**WIP
+		 * @param 
+		 * @return the value returned by the method
+		 * @throws what kind of exception does this method throw
+		 * 
+		 */
 		
 		if (yCoordinate < 0 || yCoordinate >= yDimension || xCoordinate < 0 || xCoordinate >= xDimension) {
 			System.out.println("Coordinate provided to placePiece is out of bounds. Coordinates provided: " + xCoordinate + ", " + yCoordinate);
-			return;
+			return false;
 		}
 		else if (board.get(yCoordinate).get(xCoordinate).hasPiece()) {
 			System.out.println("Coordinate provided already has piece placed on it");
-			return;
+			return false;
 		}
 		
 		switch(piece.getType()) {
@@ -136,15 +176,17 @@ public class Board {
 			
 		case WALL:
 			System.out.println("Cannot place wall using placePiece, use placeWall instead.");
-			return;
+			return false;
 			
 		default:
 			System.out.println("Problem in Board.placePiece(Piece piece, int xCoordinate, int yCoordinate)");
+			return false;
 		}
 		
 		board.get(yCoordinate).get(xCoordinate).placePiece(piece);
 		int[] coordinates = {xCoordinate, yCoordinate};
 		placedPieces.put(piece, coordinates);
+		return true;
 	}
 	
 	public void removePiece(int xCoordinate, int yCoordinate) {
@@ -508,8 +550,23 @@ public class Board {
 	
 	
 	/* Get Methods */
-	public HashMap<Piece, int[]> getPieces() {
+	public Piece getPieceAtPosition(int xCoordinate, int yCoordinate) {
+		return board.get(yCoordinate).get(xCoordinate).getPiece();
+	}
+	
+	public HashMap<Piece, int[]> getPlacedPieces() {
 		return placedPieces;
+	}
+	
+	public HashMap<Piece, int[]> getSolutionMap() {
+		return solutionPlacement;
+	}
+	
+	public HashSet<Piece> getSolutionPieces() {
+		HashSet<Piece> holder = new HashSet<Piece>();
+		for (Piece piece: solutionPieces)
+			holder.add(piece);
+		return holder;
 	}
 	
 	public int getWidth() {
