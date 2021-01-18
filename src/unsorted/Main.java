@@ -13,6 +13,7 @@ public class Main {
 
 	public static void main(String[] args) {
 		input = new Scanner(System.in);
+		String separator = "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~";
 		System.out.println("N-Pieces\nBy Brandon Chin\n");
 		
 		System.out.print("Enter width of board: ");
@@ -29,6 +30,7 @@ public class Main {
 		pieces = board.getSolutionPieces();
 		
 		while (true) {
+			System.out.println(separator);
 			System.out.println(board);
 			
 			System.out.println("What action would you like to take?");
@@ -37,17 +39,11 @@ public class Main {
 			switch(action) {
 			case "check":
 			case "c":
-				if (board.isValidSolution() && pieces.isEmpty()) {
-					System.out.println("woo");
-					input.nextLine();
-					System.exit(1);
-				} else {
-					System.out.println("Still needs a bit more work to complete.");
-				}
+				check();
 				break;
 			case "forfeit":
 			case "ff":
-				//TODO: Forfeit the game
+				forfeit();
 				break;
 			case "help":
 			case "h":
@@ -74,7 +70,7 @@ public class Main {
 				System.out.println("Unknown command. \"h\" or \"help\" for commands.");
 			}
 			
-			System.out.println();
+			//System.out.println();
 		}
 		
 	}
@@ -87,12 +83,7 @@ public class Main {
 		}
 		return null;
 	}
-	
-	/*	// Might not need this one
-	public static boolean check() {
-		return board.isValidSolution();
-	}
-	*/
+
 	
 	public static int[] promptPlayerCoords() {		//TODO: Check that the provided coordinates are valid?
 		int[] coords = new int[2];
@@ -108,9 +99,46 @@ public class Main {
 	}
 	
 	
+	public static void check() {
+		if (board.isValidSolution() && pieces.isEmpty()) {
+			System.out.println("You win!");
+			System.exit(1);
+		} else {
+			System.out.println("Still needs a bit more work to complete.");
+		}
+	}
+	
+	public static void forfeit() {
+		System.out.println("Are you sure you want to forfeit? (Y/N)");
+		while (true) {
+			String response = input.nextLine().toLowerCase();
+			if (response.equals("y"))
+				System.exit(1);
+			else if (response.equals("n"))
+				return;
+			else
+				System.out.println("Invalid response.");
+		}
+	}
+	
 	public static void help() {
 		System.out.println(
-				"Commands:\n"
+				"Instructions:\n"
+				+ "\tTry to place pieces on the board so that no piece can attack another piece.\n"
+				+ "\tPawns attack in each adjacent diagonal tiles.\n"
+				+ "\tWall pieces cannot be moved and block pieces from attacking through them.\n"
+				+ "\tNote that knights can attack over walls.\n"
+				+ "\n"
+				+ "Pieces:\n"
+				+ "\tP\tPawn\n"
+				+ "\tN\tKnight\n"
+				+ "\tB\tBishop\n"
+				+ "\tR\tRook\n"
+				+ "\tQ\tQueen\n"
+				+ "\tK\tKing\n"
+				+ "\tW\tWall\n"
+				+ "\n"
+				+ "Commands:\n"
 				+ "\tc, check\tCheck whether the game has been completed.\n"
 				+ "\tff, forfeit\tGive up on the current puzzle.\n"
 				+ "\th, help\t\tDisplay commands.\n"
